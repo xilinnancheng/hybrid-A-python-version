@@ -23,7 +23,7 @@ class Node:
 
 class HybridAStarConfig:
     def __init__(self):
-        self.xy_grid_resolution = 0.8
+        self.xy_grid_resolution = 0.5
         self.yaw_grid_resolution = np.deg2rad(2.5)
         self.max_steer = 0.5
         self.n_steer = 10
@@ -299,7 +299,7 @@ def main():
 
     hybrid_a_star_planner = HybridAStarPlanner()
     hybrid_a_star_planner.Plan(
-        start_pose, goal_pose, show_animation=True, use_rs_curve=True)
+        start_pose, goal_pose, show_animation=True, use_rs_curve=False)
 
     plt.xlabel("x coordinate")
     plt.ylabel("y coordinate")
@@ -312,7 +312,7 @@ def main():
     plt.arrow(x=goal_pose[0], y=goal_pose[1], dx=2.0 * math.cos(
         goal_pose[2]), dy=2.0 * math.sin(goal_pose[2]), width=.08, color='r')
     plt.title("Departure Scenario")
-    plt.savefig('deprature_scenario_with_rs_curve.png')
+    plt.savefig('deprature_scenario_without_rs_curve_resolution_0.5m.png')
     plt.show()
 
 
