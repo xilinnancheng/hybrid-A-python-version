@@ -12,5 +12,5 @@ Departure Scenario Without Using Reed Shepps Curve(Resolution = 1.0m):
 <img src=https://github.com/xilinnancheng/hybrid-A-python-version/blob/main/deprature_scenario_without_rs_curve_resolution_1.0m.png width = "600" height="400"/><br/>
 
 # reference
-PythonRobotics:https://github.com/AtsushiSakai/PythonRobotics
+PythonRobotics:https://github.com/AtsushiSakai/PythonRobotics  
 H-OBCA:https://github.com/XiaojingGeorgeZhang/H-OBCA
