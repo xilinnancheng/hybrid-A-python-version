@@ -23,7 +23,7 @@ class Node:
 
 class HybridAStarConfig:
     def __init__(self):
-        self.xy_grid_resolution = 0.5
+        self.xy_grid_resolution = 1.0
         self.yaw_grid_resolution = np.deg2rad(2.5)
         self.max_steer = 0.5
         self.n_steer = 10
@@ -56,7 +56,7 @@ class HybridAStarPlanner:
     def Environment(self):
         environment_upper_bound_x = 70.0
         environment_upper_bound_y = 15.0
-        environment_lower_bound_x = 30.0
+        environment_lower_bound_x = 20.0
         environment_lower_bound_y = 0.0
 
         parking_slot_upper_bound_x = 50.0
@@ -294,8 +294,8 @@ class HybridAStarPlanner:
 
 def main():
     print("Hybrid A* Planning Demo")
-    start_pose = [45, 7, np.deg2rad(0.0)]
-    goal_pose = [60, 10, np.deg2rad(0.0)]
+    start_pose = [30, 10, np.deg2rad(0.0)]
+    goal_pose = [45, 7, np.deg2rad(0.0)]
 
     hybrid_a_star_planner = HybridAStarPlanner()
     hybrid_a_star_planner.Plan(
@@ -311,8 +311,8 @@ def main():
         start_pose[2]), dy=2.0 * math.sin(start_pose[2]), width=.08, color='b')
     plt.arrow(x=goal_pose[0], y=goal_pose[1], dx=2.0 * math.cos(
         goal_pose[2]), dy=2.0 * math.sin(goal_pose[2]), width=.08, color='r')
-    plt.title("Departure Scenario")
-    plt.savefig('deprature_scenario_without_rs_curve_resolution_0.5m.png')
+    plt.title("Side Parking Scenario")
+    plt.savefig('side parking_without_rs_curve_resolution_1.0m.png')
     plt.show()
 
 
