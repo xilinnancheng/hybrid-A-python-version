@@ -16,7 +16,7 @@ class CarModel:
             self.rear_bumper_to_origin + self.rear_axis_to_cg), 0.5 * self.width_with_mirrors)
 
     def Simulate(self, x, y, yaw, steer, direction, distance):
-        pos_sign = 1.0 if direction else -1.0
+        pos_sign = 1.0 if direction == 1 else -1.0
         updated_x = x + pos_sign * distance * cos(yaw)
         updated_y = y + pos_sign * distance * sin(yaw)
         updated_yaw = self.ToPi(

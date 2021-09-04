@@ -54,15 +54,15 @@ class HybridAStarPlanner:
         self.path_y = []
 
     def Environment(self):
-        environment_upper_bound_x = 100.0
+        environment_upper_bound_x = 70.0
         environment_upper_bound_y = 15.0
-        environment_lower_bound_x = 0.0
+        environment_lower_bound_x = 30.0
         environment_lower_bound_y = 0.0
 
-        parking_slot_upper_bound_x = 70.0
-        parking_slot_upper_bound_y = 6.0
+        parking_slot_upper_bound_x = 50.0
+        parking_slot_upper_bound_y = 8.0
         parking_slot_upper_lower_x = 40.0
-        parking_slot_upper_lower_y = 0.0
+        parking_slot_upper_lower_y = 4.0
 
         for i in np.arange(environment_upper_bound_y, parking_slot_upper_bound_y, -0.5):
             self.obstacles_x.append(environment_lower_bound_x)
@@ -230,7 +230,7 @@ class HybridAStarPlanner:
             self.path_x.extend(path.x)
             self.path_y.extend(path.y)
 
-    def Plan(self, start, goal, show_animation):
+    def Plan(self, start, goal, show_animation=False, use_rs_curve=False):
         self.Environment()
 
         start_node = Node(start[0], start[1], start[2], round(start[0]/self.config.xy_grid_resolution), round(
@@ -260,14 +260,18 @@ class HybridAStarPlanner:
             closed_list[curr_node_index] = curr_node
 
             if show_animation:
-                if curr_node.direction:
+                if curr_node.direction == 1:
                     plt.arrow(x=curr_node.x, y=curr_node.y, dx=1.0 * math.cos(
                         curr_node.yaw), dy=1.0 * math.sin(curr_node.yaw), width=.08, color='k')
                 else:
                     plt.arrow(x=curr_node.x, y=curr_node.y, dx=1.0 * math.cos(
-                        curr_node.yaw), dy=1.0 * math.sin(curr_node.yaw), width=.08, color='r')
+                        curr_node.yaw), dy=1.0 * math.sin(curr_node.yaw), width=.08, color='b')
 
-            find_rs_path, path = self.TryReedSheppPath(curr_node, goal_node)
+            find_rs_path, path = None, None
+            if use_rs_curve:
+                find_rs_path, path = self.TryReedSheppPath(
+                    curr_node, goal_node)
+
             if (curr_node.x_index == goal_node.x_index and curr_node.y_index == goal_node.y_index
                     and abs(curr_node.yaw_index - goal_node.yaw_index) <= 1) or find_rs_path:
                 final_goal_node = curr_node
@@ -290,11 +294,12 @@ class HybridAStarPlanner:
 
 def main():
     print("Hybrid A* Planning Demo")
-    start_pose = [20, 10, np.deg2rad(0.0)]
-    goal_pose = [50, 4, np.deg2rad(230.0)]
+    start_pose = [45, 7, np.deg2rad(0.0)]
+    goal_pose = [60, 10, np.deg2rad(0.0)]
 
     hybrid_a_star_planner = HybridAStarPlanner()
-    hybrid_a_star_planner.Plan(start_pose, goal_pose, True)
+    hybrid_a_star_planner.Plan(
+        start_pose, goal_pose, show_animation=True, use_rs_curve=True)
 
     plt.xlabel("x coordinate")
     plt.ylabel("y coordinate")
@@ -303,11 +308,11 @@ def main():
     plt.plot(hybrid_a_star_planner.path_x,
              hybrid_a_star_planner.path_y, 'b')
     plt.arrow(x=start_pose[0], y=start_pose[1], dx=2.0 * math.cos(
-        start_pose[2]), dy=2.0 * math.sin(start_pose[2]), width=.08)
+        start_pose[2]), dy=2.0 * math.sin(start_pose[2]), width=.08, color='b')
     plt.arrow(x=goal_pose[0], y=goal_pose[1], dx=2.0 * math.cos(
-        goal_pose[2]), dy=2.0 * math.sin(goal_pose[2]), width=.08)
-    plt.xlim(0, 100)
-    plt.ylim(0, 20)
+        goal_pose[2]), dy=2.0 * math.sin(goal_pose[2]), width=.08, color='r')
+    plt.title("Departure Scenario")
+    plt.savefig('deprature_scenario_with_rs_curve.png')
     plt.show()
 
 
