@@ -23,7 +23,7 @@ class Node:
 
 class HybridAStarConfig:
     def __init__(self):
-        self.xy_grid_resolution = 1.0
+        self.xy_grid_resolution = 0.8
         self.yaw_grid_resolution = np.deg2rad(2.5)
         self.max_steer = 0.5
         self.n_steer = 10
@@ -125,8 +125,8 @@ class HybridAStarPlanner:
         for steer, direction in self.motion_input:
             neighbour_x, neighbour_y, neighbour_yaw = self.car_model.Simulate(
                 node.x, node.y, node.yaw, steer, direction, self.config.step)
-            if self.car_model.CollisionCheck(neighbour_x, neighbour_y, neighbour_yaw,
-                                             self.obstacles_x, self.obstacles_y, self.environment_kd_tree):
+            if self.car_model.ConvexCollisionCheck(neighbour_x, neighbour_y, neighbour_yaw,
+                                                   self.obstacles_x, self.obstacles_y, self.environment_kd_tree):
                 continue
 
             neighbour_x_index = round(
@@ -205,8 +205,8 @@ class HybridAStarPlanner:
                 x = path.x[i]
                 y = path.y[i]
                 yaw = path.yaw[i]
-                if(self.car_model.CollisionCheck(x, y, yaw,
-                                                 self.obstacles_x, self.obstacles_y, self.environment_kd_tree)):
+                if(self.car_model.ConvexCollisionCheck(x, y, yaw,
+                                                       self.obstacles_x, self.obstacles_y, self.environment_kd_tree)):
                     is_collision = True
                     break
 
@@ -312,7 +312,6 @@ def main():
     plt.arrow(x=goal_pose[0], y=goal_pose[1], dx=2.0 * math.cos(
         goal_pose[2]), dy=2.0 * math.sin(goal_pose[2]), width=.08, color='r')
     plt.title("Side Parking Scenario")
-    plt.savefig('side parking_without_rs_curve_resolution_1.0m.png')
     plt.show()
 
 
