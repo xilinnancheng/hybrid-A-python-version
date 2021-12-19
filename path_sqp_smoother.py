@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 
 # f(x) = 1/2 * x^T * Q * x + p^T * x
 class SQPSmoother:
-    def __init__(self, points_x, points_y, lb, ub, curvature_limit, smooth_weight, length_weight, distance_weight, slack_weight):
+    def __init__(self, points_x, points_y, lb, ub, curvature_limit, smooth_weight, length_weight, distance_weight, slack_weight, fixed_start_end):
         self.num_of_points_ = len(points_x)
         self.num_of_slack_variables_ = self.num_of_points_ - 2
         self.num_of_pos_variables = 2 * self.num_of_points_
@@ -21,11 +21,12 @@ class SQPSmoother:
         self.curvature_limit_ = curvature_limit
         self.lb_ = lb
         self.ub_ = ub
+        self.fixed_start_end_ = fixed_start_end
 
-        self.sqp_pen_max_iter_ = 100
+        self.sqp_pen_max_iter_ = 5
         self.sqp_ftol_ = 1e-2
-        self.sqp_sub_max_iter_ = 100
-        self.sqp_ctol_ = 1e-2
+        self.sqp_sub_max_iter_ = 5
+        self.sqp_ctol_ = 1
 
         total_length = 0.0
         for i in range(self.num_of_points_ - 1):
@@ -146,7 +147,7 @@ class SQPSmoother:
             pow(average_interval_length, 2) * self.curvature_limit_, 2)
         max_violation = -1e20
 
-        for i in range(1, len(x) - 2):
+        for i in range(1, len(x) - 1):
             x_pre = x[i - 1]
             x_cur = x[i]
             x_nex = x[i + 1]
@@ -154,9 +155,9 @@ class SQPSmoother:
             y_pre = y[i - 1]
             y_cur = y[i]
             y_nex = y[i + 1]
-            violation = curvature_constraint_sqr - \
-                pow(x_pre + x_nex - 2.0 * x_cur, 2.0) - \
-                pow(y_pre + y_nex - 2.0 * y_cur, 2.0)
+            violation = abs(curvature_constraint_sqr -
+                            pow(x_pre + x_nex - 2.0 * x_cur, 2.0) -
+                            pow(y_pre + y_nex - 2.0 * y_cur, 2.0))
             max_violation = violation if violation > max_violation else max_violation
         return max_violation
 
@@ -276,6 +277,19 @@ class SQPSmoother:
         P = self.CalculateP()
         A, lb, ub = self.CalculateAffineConstraint(self.x_ref_, self.y_ref_)
 
+        if self.fixed_start_end_:
+            lb[0] = self.x_ref_[0] - 1e-6
+            ub[0] = self.x_ref_[0] + 1e-6
+            lb[self.num_of_points_ - 1] = self.x_ref_[self.num_of_points_ - 1] - 1e-6
+            ub[self.num_of_points_ - 1] = self.x_ref_[self.num_of_points_ - 1] + 1e-6
+
+            lb[self.num_of_points_] = self.y_ref_[0] - 1e-6
+            ub[self.num_of_points_] = self.y_ref_[0] + 1e-6
+            lb[self.num_of_pos_variables -
+                1] = self.y_ref_[self.num_of_points_ - 1] - 1e-6
+            ub[self.num_of_pos_variables -
+                1] = self.y_ref_[self.num_of_points_ - 1] + 1e-6
+
         prob = osqp.OSQP()
         prob.setup(Q, P, A, lb, ub, polish=True, eps_abs=1e-5, eps_rel=1e-5,
                    eps_prim_inf=1e-5, eps_dual_inf=1e-5)
@@ -322,6 +336,21 @@ class SQPSmoother:
                 A, lb, ub = self.CalculateAffineConstraint((last_opt_res[0:self.num_of_points_]).tolist(), (
                     last_opt_res[self.num_of_points_:self.num_of_pos_variables]).tolist())
 
+                if self.fixed_start_end_:
+                    lb[0] = self.x_ref_[0] - 1e-6
+                    ub[0] = self.x_ref_[0] + 1e-6
+                    lb[self.num_of_points_ -
+                        1] = self.x_ref_[self.num_of_points_ - 1] - 1e-6
+                    ub[self.num_of_points_ -
+                        1] = self.x_ref_[self.num_of_points_ - 1] + 1e-6
+
+                    lb[self.num_of_points_] = self.y_ref_[0] - 1e-6
+                    ub[self.num_of_points_] = self.y_ref_[0] + 1e-6
+                    lb[self.num_of_pos_variables -
+                        1] = self.y_ref_[self.num_of_points_ - 1] - 1e-6
+                    ub[self.num_of_pos_variables -
+                        1] = self.y_ref_[self.num_of_points_ - 1] + 1e-6
+
                 prob = osqp.OSQP()
                 prob.setup(Q, P, A, lb, ub, polish=True, eps_abs=1e-5, eps_rel=1e-5,
                            eps_prim_inf=1e-5, eps_dual_inf=1e-5)
@@ -351,9 +380,13 @@ class SQPSmoother:
             pen_itr += 1
             max_violation = self.CalculateConstraintViolation((last_opt_res[0:self.num_of_points_]).tolist(), (
                 last_opt_res[self.num_of_points_:self.num_of_pos_variables]).tolist())
+            print(max_violation)
             if max_violation < self.sqp_ctol_:
                 break
 
+        plt.figure(1)
+        plt.legend(legend_title)
+        plt.figure(2)
         plt.legend(legend_title)
         plt.show()
         return
@@ -368,10 +401,11 @@ def main():
     length_weight = 0.01
     distance_weight = 10.0
     slack_weight = 400
-    curvature_limit = 0.5
+    curvature_limit = 0.2
+    fixed_start_end = False
 
     sqp_smoother = SQPSmoother(
-        points_x, points_y, lb, ub, curvature_limit, smooth_weight, length_weight, distance_weight, slack_weight)
+        points_x, points_y, lb, ub, curvature_limit, smooth_weight, length_weight, distance_weight, slack_weight, fixed_start_end)
     sqp_smoother.QPSolve()
 
 
