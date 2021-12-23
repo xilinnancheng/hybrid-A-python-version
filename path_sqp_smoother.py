@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 
 # f(x) = 1/2 * x^T * Q * x + p^T * x
 class SQPSmoother:
-    def __init__(self, points_x, points_y, lb, ub, curvature_limit, smooth_weight, length_weight, distance_weight, slack_weight, fixed_start_end):
+    def __init__(self, points_x, points_y, lb, ub, curvature_limit, smooth_weight, length_weight, distance_weight, slack_weight, fixed_start_end, enable_plot):
         self.num_of_points_ = len(points_x)
         self.num_of_slack_variables_ = self.num_of_points_ - 2
         self.num_of_pos_variables = 2 * self.num_of_points_
@@ -18,14 +18,17 @@ class SQPSmoother:
         self.slack_weight_ = slack_weight
         self.x_ref_ = points_x
         self.y_ref_ = points_y
+        self.x_optimized = []
+        self.y_optimized = []
         self.curvature_limit_ = curvature_limit
         self.lb_ = lb
         self.ub_ = ub
         self.fixed_start_end_ = fixed_start_end
+        self.enable_plot_ = enable_plot
 
-        self.sqp_pen_max_iter_ = 5
-        self.sqp_ftol_ = 1e-2
-        self.sqp_sub_max_iter_ = 5
+        self.sqp_pen_max_iter_ = 100
+        self.sqp_ftol_ = 5e-2
+        self.sqp_sub_max_iter_ = 100
         self.sqp_ctol_ = 1
 
         total_length = 0.0
@@ -111,12 +114,14 @@ class SQPSmoother:
         data = np.array(x_data)
 
         for i in range(len(row)):
-            data[i] *= 2.0
+            if row[i] == col[i]:
+                data[i] *= 0.5
 
         Q = sparse.csc_matrix((data, (row, col)), shape=(
             self.num_of_variables_, self.num_of_variables_))
+        Q += Q.transpose()
         # print(Q.toarray())
-        return Q
+        return 2.0 * Q
 
     def CalculateP(self):
         P = []
@@ -142,9 +147,9 @@ class SQPSmoother:
         for i in range(len(x) - 1):
             total_length += math.hypot(x[i + 1] - x[i], y[i + 1] - y[i])
 
-        average_interval_length = total_length / (len(x) - 1)
+        self.average_length = total_length / (len(x) - 1)
         curvature_constraint_sqr = pow(
-            pow(average_interval_length, 2) * self.curvature_limit_, 2)
+            pow(self.average_length, 2.0) * self.curvature_limit_, 2.0)
         max_violation = -1e20
 
         for i in range(1, len(x) - 1):
@@ -155,9 +160,9 @@ class SQPSmoother:
             y_pre = y[i - 1]
             y_cur = y[i]
             y_nex = y[i + 1]
-            violation = abs(curvature_constraint_sqr -
-                            pow(x_pre + x_nex - 2.0 * x_cur, 2.0) -
-                            pow(y_pre + y_nex - 2.0 * y_cur, 2.0))
+
+            violation = (curvature_constraint_sqr -
+                         self.CalculateSmooth(x_pre, x_cur, x_nex, y_pre, y_cur, y_nex))
             max_violation = violation if violation > max_violation else max_violation
         return max_violation
 
@@ -175,13 +180,13 @@ class SQPSmoother:
             data.append(1.0)
 
             if i < self.num_of_points_:
-                lb.append(x[i] - self.lb_)
-                ub.append(x[i] + self.ub_)
+                lb.append(self.x_ref_[i] - self.lb_)
+                ub.append(self.x_ref_[i] + self.ub_)
             elif i < self.num_of_pos_variables:
                 lb.append(
-                    y[i - self.num_of_pos_variables] - self.lb_)
+                    self.y_ref_[i - self.num_of_pos_variables] - self.lb_)
                 ub.append(
-                    y[i - self.num_of_pos_variables] + self.ub_)
+                    self.y_ref_[i - self.num_of_pos_variables] + self.ub_)
             else:
                 lb.append(0.0)
                 ub.append(1e10)
@@ -222,6 +227,10 @@ class SQPSmoother:
             delta_f6 = 2.0 * common_y_val
             data.append(delta_f6)
 
+            row.append(row_num)
+            col.append(self.num_of_pos_variables + i - 1)
+            data.append(-1.0)
+
             delta_f = np.array(
                 [delta_f1, delta_f2, delta_f3, delta_f4, delta_f5, delta_f6])
             xy_ref = np.array([x[i-1], x[i], x[i+1],
@@ -231,15 +240,66 @@ class SQPSmoother:
                       * self.curvature_limit_, 2.0) -
                       self.CalculateSmooth(x[i-1], x[i], x[i+1],
                                            y[i-1], y[i], y[i+1]) +
-                      np.dot(delta_f, xy_ref))
+                      abs(np.dot(delta_f, xy_ref)))
             lb.append(-1e10)
             row_num += 1
 
+        for i in range(1, self.num_of_points_ - 1):
+            common_x_val = x[i-1] +\
+                x[i+1] - 2*x[i]
+            row.append(row_num)
+            col.append(i - 1)
+            delta_f1 = 2.0 * common_x_val
+            data.append(delta_f1)
+
+            row.append(row_num)
+            col.append(i)
+            delta_f2 = -4.0 * common_x_val
+            data.append(delta_f2)
+
+            row.append(row_num)
+            col.append(i+1)
+            delta_f3 = 2.0 * common_x_val
+            data.append(delta_f3)
+
+            common_y_val = y[i-1] + \
+                y[i+1] - 2*y[i]
+            row.append(row_num)
+            col.append(self.num_of_points_ + i - 1)
+            delta_f4 = 2.0 * common_y_val
+            data.append(delta_f4)
+
+            row.append(row_num)
+            col.append(self.num_of_points_ + i)
+            delta_f5 = -4.0 * common_y_val
+            data.append(delta_f5)
+
+            row.append(row_num)
+            col.append(self.num_of_points_ + i + 1)
+            delta_f6 = 2.0 * common_y_val
+            data.append(delta_f6)
+
+            row.append(row_num)
+            col.append(self.num_of_pos_variables + i - 1)
+            data.append(1.0)
+
+            delta_f = np.array(
+                [delta_f1, delta_f2, delta_f3, delta_f4, delta_f5, delta_f6])
+            xy_ref = np.array([x[i-1], x[i], x[i+1],
+                               y[i-1], y[i], y[i+1]])
+
+            lb.append(-1.0 * math.pow(math.pow(self.average_length, 2.0)
+                      * self.curvature_limit_, 2.0) +
+                      self.CalculateSmooth(x[i-1], x[i], x[i+1],
+                                           y[i-1], y[i], y[i+1]) -
+                      np.dot(delta_f, xy_ref))
+            ub.append(1e10)
+            row_num += 1
+
         A = sparse.csc_matrix((data, (row, col)), shape=(
-            self.num_of_variables_ + self.num_of_slack_variables_, self.num_of_variables_))
+            self.num_of_variables_ + 2 * self.num_of_slack_variables_, self.num_of_variables_))
         lb = np.array(lb)
         ub = np.array(ub)
-        # print(lb, ub)
         return A, lb, ub
 
     def CalculateCurvature(self, xi_minus_1, xi, xi_plus_1, yi_minus_1, yi, yi_plus_1):
@@ -252,11 +312,11 @@ class SQPSmoother:
         b = 1e-5 if abs(xi - xi_plus_1) < 1e-5 else xi - xi_plus_1
 
         u = ((math.pow(xi_minus_1, 2) - math.pow(xi, 2) +
-             math.pow(yi_minus_1, 2) - math.pow(yi, 2))/(2 * a))
+              math.pow(yi_minus_1, 2) - math.pow(yi, 2))/(2 * a))
         k_1 = (yi_minus_1 - yi)/a
 
         v = ((math.pow(xi, 2) - math.pow(xi_plus_1, 2) +
-             math.pow(yi, 2) - math.pow(yi_plus_1, 2))/(2 * b))
+              math.pow(yi, 2) - math.pow(yi_plus_1, 2))/(2 * b))
         k_2 = (yi - yi_plus_1)/b
 
         Ry = (u - v) / (k_1 - k_2)
@@ -266,12 +326,17 @@ class SQPSmoother:
 
     def CalculatePathCurvature(self, x, y):
         path_curvature = []
-        for i in range(1, len(x) - 2):
+        for i in range(1, len(x) - 1):
             path_curvature.append(self.CalculateCurvature(
                 x[i-1], x[i], x[i+1], y[i-1], y[i], y[i+1]))
         return path_curvature
 
     def QPSolve(self):
+        if self.num_of_variables_ < 6:
+            self.x_optimized = self.x_ref_
+            self.y_optimized = self.y_ref_
+            return
+
         # Init solution
         Q = self.CalculateQ()
         P = self.CalculateP()
@@ -292,35 +357,39 @@ class SQPSmoother:
 
         prob = osqp.OSQP()
         prob.setup(Q, P, A, lb, ub, polish=True, eps_abs=1e-5, eps_rel=1e-5,
-                   eps_prim_inf=1e-5, eps_dual_inf=1e-5)
+                   eps_prim_inf=1e-5, eps_dual_inf=1e-5, verbose=True)
 
         var_warm_start = np.array(
             self.x_ref_ + self.y_ref_ + [0.0 for n in range(self.num_of_slack_variables_)])
-        prob.warm_start(var_warm_start)
+        prob.warm_start(x=var_warm_start)
         res = prob.solve()
 
+        # print(res.x[0:self.num_of_variables_])
+        # self.CalculateConstraintViolation((res.x[0:self.num_of_points_]).tolist(), (
+        #     res.x[self.num_of_points_:self.num_of_pos_variables]).tolist())
+
         # Plot init solution
-        plt.figure(num=1)
-        plt.xlabel("x coordinate")
-        plt.ylabel("y coordinate")
-        legend_title = ['Ref', 'Iter_1']
-        plt.plot(self.x_ref_, self.y_ref_, marker="o")
-        plt.plot(res.x[0:self.num_of_points_],
-                 res.x[self.num_of_points_:self.num_of_pos_variables],
-                 marker="o")
-        plt.title("Path SQP Smoother")
+        if self.enable_plot_:
+            plt.figure(num=1)
+            plt.xlabel("x coordinate")
+            plt.ylabel("y coordinate")
+            legend_title = ['Ref', 'Iter_1']
+            plt.plot(self.x_ref_, self.y_ref_, marker="o")
+            plt.plot(res.x[0:self.num_of_points_],
+                     res.x[self.num_of_points_:self.num_of_pos_variables],
+                     marker="o")
+            plt.title("Path SQP Smoother")
 
-        ref_path_curvature = self.CalculatePathCurvature(
-            self.x_ref_, self.y_ref_)
-        print(ref_path_curvature)
-        iter_1_path_curvature = self.CalculatePathCurvature(
-            res.x[0:self.num_of_points_], res.x[self.num_of_points_:self.num_of_pos_variables])
+            ref_path_curvature = self.CalculatePathCurvature(
+                self.x_ref_, self.y_ref_)
+            iter_1_path_curvature = self.CalculatePathCurvature(
+                res.x[0:self.num_of_points_], res.x[self.num_of_points_:self.num_of_pos_variables])
 
-        plt.figure(num=2)
-        plt.ylabel("curvature")
-        plt.title("Path curvature")
-        plt.plot(ref_path_curvature, marker="o")
-        plt.plot(iter_1_path_curvature, marker="o")
+            plt.figure(num=2)
+            plt.ylabel("curvature")
+            plt.title("Path curvature")
+            plt.plot(ref_path_curvature, marker="o")
+            plt.plot(iter_1_path_curvature, marker="o")
 
         last_obj_val = res.info.obj_val
         last_opt_res = res.x
@@ -331,8 +400,6 @@ class SQPSmoother:
             while sub_itr < self.sqp_sub_max_iter_:
                 # new iteration
                 iter_num += 1
-                Q = self.CalculateQ()
-                P = self.CalculateP()
                 A, lb, ub = self.CalculateAffineConstraint((last_opt_res[0:self.num_of_points_]).tolist(), (
                     last_opt_res[self.num_of_points_:self.num_of_pos_variables]).tolist())
 
@@ -351,27 +418,25 @@ class SQPSmoother:
                     ub[self.num_of_pos_variables -
                         1] = self.y_ref_[self.num_of_points_ - 1] + 1e-6
 
-                prob = osqp.OSQP()
-                prob.setup(Q, P, A, lb, ub, polish=True, eps_abs=1e-5, eps_rel=1e-5,
-                           eps_prim_inf=1e-5, eps_dual_inf=1e-5)
-
-                prob.warm_start(last_opt_res)
+                prob.update(Ax=A.data)
+                prob.update(l=lb, u=ub)
                 res = prob.solve()
                 last_opt_res = res.x
 
                 # plot new iteration's result
-                plt.figure(num=1)
-                plt.plot(res.x[0:self.num_of_points_],
-                         res.x[self.num_of_points_:self.num_of_pos_variables], marker="o")
-                legend_title.append("Iter_"+str(iter_num))
+                if self.enable_plot_:
+                    plt.figure(num=1)
+                    plt.plot(res.x[0:self.num_of_points_],
+                             res.x[self.num_of_points_:self.num_of_pos_variables], marker="o")
+                    legend_title.append("Iter_"+str(iter_num))
 
-                iter_path_curvature = self.CalculatePathCurvature(
-                    res.x[0:self.num_of_points_], res.x[self.num_of_points_:self.num_of_pos_variables])
-                plt.figure(num=2)
-                plt.plot(iter_path_curvature, marker="o")
+                    iter_path_curvature = self.CalculatePathCurvature(
+                        res.x[0:self.num_of_points_], res.x[self.num_of_points_:self.num_of_pos_variables])
+                    plt.figure(num=2)
+                    plt.plot(iter_path_curvature, marker="o")
 
                 obj_val_tol = abs((res.info.obj_val -
-                                  last_obj_val)/last_obj_val)
+                                   last_obj_val)/last_obj_val)
                 last_obj_val = res.info.obj_val
                 sub_itr += 1
                 if obj_val_tol < self.sqp_ftol_:
@@ -380,32 +445,38 @@ class SQPSmoother:
             pen_itr += 1
             max_violation = self.CalculateConstraintViolation((last_opt_res[0:self.num_of_points_]).tolist(), (
                 last_opt_res[self.num_of_points_:self.num_of_pos_variables]).tolist())
-            print(max_violation)
             if max_violation < self.sqp_ctol_:
                 break
 
-        plt.figure(1)
-        plt.legend(legend_title)
-        plt.figure(2)
-        plt.legend(legend_title)
-        plt.show()
+        self.x_optimized = res.x[0:self.num_of_points_]
+        self.y_optimized = res.x[self.num_of_points_:self.num_of_pos_variables]
+
+        if self.enable_plot_:
+            plt.figure(1)
+            plt.legend(legend_title)
+            plt.figure(2)
+            plt.legend(legend_title)
+            plt.show()
         return
 
 
 def main():
     points_x = [1.0, 1.5, 2.1, 2.1, 2.1, 2.1, 2.1, 2.1, 2.5, 2.9, 3.3, 3.8]
     points_y = [0.0, 0.3, 0.5, 0.9, 1.2, 1.5, 1.9, 2.2, 2.2, 2.2, 2.2, 2.2]
+    # points_x = [1.0, 1.5, 2.1, 2.1]
+    # points_y = [0.0, 0.3, 0.5, 1.2]
     lb = 0.3
     ub = 0.3
-    smooth_weight = 4.0
-    length_weight = 0.01
-    distance_weight = 10.0
-    slack_weight = 400
+    smooth_weight = 1000.0
+    length_weight = 2.0
+    distance_weight = 1.0
+    slack_weight = 1000.0
     curvature_limit = 0.2
     fixed_start_end = False
+    enable_plot = True
 
     sqp_smoother = SQPSmoother(
-        points_x, points_y, lb, ub, curvature_limit, smooth_weight, length_weight, distance_weight, slack_weight, fixed_start_end)
+        points_x, points_y, lb, ub, curvature_limit, smooth_weight, length_weight, distance_weight, slack_weight, fixed_start_end, enable_plot)
     sqp_smoother.QPSolve()
 
 

@@ -1,8 +1,9 @@
 import numpy as np
 import math
 import heapq
-from Car import CarModel
 import ReedsSheppPathPlanning as rs
+from path_ipopt_smoother import IpoptSmoother
+from Car import CarModel
 from matplotlib import pyplot as plt
 from scipy.spatial import cKDTree
 
@@ -23,7 +24,7 @@ class Node:
 
 class HybridAStarConfig:
     def __init__(self):
-        self.xy_grid_resolution = 0.8
+        self.xy_grid_resolution = 0.3
         self.yaw_grid_resolution = np.deg2rad(2.5)
         self.max_steer = 0.5
         self.n_steer = 10
@@ -219,16 +220,42 @@ class HybridAStarPlanner:
 
     def GetPath(self, closed_list, goal_node, find_rs_path, path):
         curr_node = goal_node
+        last_direction = curr_node.direction
+        path_segment_x = []
+        path_segment_y = []
         while curr_node.parent_index != -1:
-            self.path_x.append(curr_node.x)
-            self.path_y.append(curr_node.y)
+            if last_direction != curr_node.direction:
+                path_segment_x.reverse()
+                path_segment_y.reverse()
+                self.path_x.append(path_segment_x)
+                self.path_y.append(path_segment_y)
+                last_direction = curr_node.direction
+                path_segment_x = []
+                path_segment_y = []
+
+            path_segment_x.append(curr_node.x)
+            path_segment_y.append(curr_node.y)
             curr_node = closed_list[curr_node.parent_index]
-        self.path_x.reverse()
-        self.path_y.reverse()
+
+        path_segment_x.reverse()
+        path_segment_y.reverse()
+        self.path_x.append(path_segment_x)
+        self.path_y.append(path_segment_y)
 
         if find_rs_path:
-            self.path_x.extend(path.x)
-            self.path_y.extend(path.y)
+            last_direction = path.directions[0]
+            path_segment_x = []
+            path_segment_y = []
+            for i in range(len(path.x)):
+                if last_direction != path.directions[i]:
+                    self.path_x.append(path_segment_x)
+                    self.path_y.append(path_segment_y)
+                    last_direction = path.directions[i]
+                    path_segment_x = []
+                    path_segment_y = []
+
+                path_segment_x.append(path.x[i])
+                path_segment_y.append(path.y[i])
 
     def Plan(self, start, goal, show_animation=False, use_rs_curve=False):
         self.Environment()
@@ -297,21 +324,49 @@ def main():
     start_pose = [30, 10, np.deg2rad(0.0)]
     goal_pose = [45, 7, np.deg2rad(0.0)]
 
+    lb = 0.3
+    ub = 0.3
+    smooth_weight = 10
+    length_weight = 1.0
+    distance_weight = 2.0
+    slack_weight = 400
+    curvature_limit = 0.1
+    fixed_start_end = True
+    enable_plot = False
+
     hybrid_a_star_planner = HybridAStarPlanner()
     hybrid_a_star_planner.Plan(
-        start_pose, goal_pose, show_animation=True, use_rs_curve=False)
+        start_pose, goal_pose, show_animation=False, use_rs_curve=True)
 
+    plt.figure(num=1)
     plt.xlabel("x coordinate")
     plt.ylabel("y coordinate")
     plt.plot(hybrid_a_star_planner.obstacles_x,
              hybrid_a_star_planner.obstacles_y, 'k')
-    plt.plot(hybrid_a_star_planner.path_x,
-             hybrid_a_star_planner.path_y, 'b')
     plt.arrow(x=start_pose[0], y=start_pose[1], dx=2.0 * math.cos(
         start_pose[2]), dy=2.0 * math.sin(start_pose[2]), width=.08, color='b')
     plt.arrow(x=goal_pose[0], y=goal_pose[1], dx=2.0 * math.cos(
         goal_pose[2]), dy=2.0 * math.sin(goal_pose[2]), width=.08, color='r')
     plt.title("Side Parking Scenario")
+    legend_txt = []
+    for i in range(len(hybrid_a_star_planner.path_x)):
+        plt.figure(num=1)
+        ipopt_smoother = IpoptSmoother(
+            hybrid_a_star_planner.path_x[i], hybrid_a_star_planner.path_y[i], lb, ub, curvature_limit, smooth_weight, length_weight, distance_weight, slack_weight, fixed_start_end, enable_plot)
+        ipopt_smoother.Solve()
+        plt.plot(hybrid_a_star_planner.path_x[i],
+                 hybrid_a_star_planner.path_y[i], marker="o")
+        plt.plot(ipopt_smoother.x_optimized,
+                 ipopt_smoother.y_optimized, 'r', marker="x")
+
+        plt.figure(num=2)
+        legend_txt.append("Ref_"+str(i))
+        legend_txt.append("Iter_"+str(i))
+        plt.plot(ipopt_smoother.CalculatePathCurvature(
+            hybrid_a_star_planner.path_x[i], hybrid_a_star_planner.path_y[i]))
+        plt.plot(ipopt_smoother.CalculatePathCurvature(
+            ipopt_smoother.x_optimized, ipopt_smoother.y_optimized))
+    plt.legend(legend_txt)
     plt.show()
 
 
