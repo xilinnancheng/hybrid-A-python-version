@@ -27,6 +27,14 @@ Path Smooth Using Ipopt:
 <img src=https://github.com/xilinnancheng/hybrid-A-python-version/blob/main/path_ipopt_smoother_with_fixed_start_end.png width = "600" height="400"/><br/>
 <img src=https://github.com/xilinnancheng/hybrid-A-python-version/blob/main/path_curvature_ipopt_smoother_with_fixed_start_end.png width = "600" height="400"/><br/>  
 
+Path Smooth Using SQP:    
+<img src=https://github.com/xilinnancheng/hybrid-A-python-version/blob/main/path_sqp_smoother_with_fixed_start_end.png width = "600" height="400"/><br/>
+<img src=https://github.com/xilinnancheng/hybrid-A-python-version/blob/main/path_curvature_sqp_smoother_with_fixed_start_end.png width = "600" height="400"/><br/> 
+
+Hybrid A-start Path Smooth Using IPOPT:    
+<img src=https://github.com/xilinnancheng/hybrid-A-python-version/blob/main/side_parking_path_smoother.png width = "600" height="400"/><br/>
+<img src=https://github.com/xilinnancheng/hybrid-A-python-version/blob/main/side_parking_path_curvatre_smoother.png.png width = "600" height="400"/><br/>  
+
 # Reference
 PythonRobotics:https://github.com/AtsushiSakai/PythonRobotics  
   
@@ -36,4 +44,6 @@ Discrete Point Smoother: https://mp.weixin.qq.com/s/_C8qHOjgqNEfTMip8qYqTA?from=
 
 Ipopt: https://coin-or.github.io/Ipopt/
 
-Cyipopt:https://github.com/mechmotum/cyipopt see also examples.
+Cyipopt:https://github.com/mechmotum/cyipopt also see examples.
+
+OSQP:https://osqp.org/docs/solver/index.html
