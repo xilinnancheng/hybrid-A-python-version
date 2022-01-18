@@ -36,14 +36,14 @@ Hybrid A-start Path Smooth Using IPOPT:
 <img src=https://github.com/xilinnancheng/hybrid-A-python-version/blob/main/side_parking_path_curvatre_smoother.png width = "600" height="400"/><br/>  
 
 # Reference
-PythonRobotics:https://github.com/AtsushiSakai/PythonRobotics  
+1.PythonRobotics:https://github.com/AtsushiSakai/PythonRobotics  
   
-H-OBCA:https://github.com/XiaojingGeorgeZhang/H-OBCA
+2.H-OBCA:https://github.com/XiaojingGeorgeZhang/H-OBCA
 
-Discrete Point Smoother: https://mp.weixin.qq.com/s/_C8qHOjgqNEfTMip8qYqTA?from=singlemessage&isappinstalled=0&scene=1&clicktime=1639491694&enterid=1639491694
+3.Discrete Point Smoother: https://mp.weixin.qq.com/s/_C8qHOjgqNEfTMip8qYqTA?from=singlemessage&isappinstalled=0&scene=1&clicktime=1639491694&enterid=1639491694
 
-Ipopt: https://coin-or.github.io/Ipopt/
+4.Ipopt: https://coin-or.github.io/Ipopt/
 
-Cyipopt:https://github.com/mechmotum/cyipopt also see examples.
+5.Cyipopt:https://github.com/mechmotum/cyipopt also see examples.
 
-OSQP:https://osqp.org/docs/solver/index.html
+6.OSQP:https://osqp.org/docs/solver/index.html
