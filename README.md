@@ -33,7 +33,7 @@ Path Smooth Using SQP:
 
 Hybrid A-start Path Smooth Using IPOPT:    
 <img src=https://github.com/xilinnancheng/hybrid-A-python-version/blob/main/side_parking_path_smoother.png width = "600" height="400"/><br/>
-<img src=https://github.com/xilinnancheng/hybrid-A-python-version/blob/main/side_parking_path_curvatre_smoother.png.png width = "600" height="400"/><br/>  
+<img src=https://github.com/xilinnancheng/hybrid-A-python-version/blob/main/side_parking_path_curvatre_smoother.png width = "600" height="400"/><br/>  
 
 # Reference
 PythonRobotics:https://github.com/AtsushiSakai/PythonRobotics  
