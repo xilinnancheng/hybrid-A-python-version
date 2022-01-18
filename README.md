@@ -23,6 +23,10 @@ Side Parking Without Using Reed Shepps Curve(Resolution = 0.8m):
 Side Parking Without Using Reed Shepps Curve(Resolution = 1.0m):    
 <img src=https://github.com/xilinnancheng/hybrid-A-python-version/blob/main/side%20parking_without_rs_curve_resolution_1.0m.png width = "600" height="400"/><br/>  
 
+Path Smooth Using Ipopt:    
+<img src=https://github.com/xilinnancheng/hybrid-A-python-version/blob/main/path_ipopt_smoother_with_fixed_start_end.png width = "600" height="400"/><br/>
+<img src=https://github.com/xilinnancheng/hybrid-A-python-version/blob/main/path_curvature_ipopt_smoother_with_fixed_start_end.png width = "600" height="400"/><br/>  
+
 # Reference
 PythonRobotics:https://github.com/AtsushiSakai/PythonRobotics  
   
