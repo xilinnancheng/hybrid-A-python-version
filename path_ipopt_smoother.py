@@ -326,26 +326,37 @@ class IpoptSmoother:
         return P
 
     def CalculateCurvature(self, xi_minus_1, xi, xi_plus_1, yi_minus_1, yi, yi_plus_1):
-        vec_1 = np.array([xi_minus_1 - xi, yi_minus_1 - yi])
-        vec_2 = np.array([xi_plus_1 - xi, yi_plus_1 - yi])
-        if abs(np.cross(vec_1, vec_2)) < 1e-5:
-            return 1e-5
+        # vec_1 = np.array([xi_minus_1 - xi, yi_minus_1 - yi])
+        # vec_2 = np.array([xi_plus_1 - xi, yi_plus_1 - yi])
+        # if abs(np.cross(vec_1, vec_2)) < 1e-5:
+        #     return 1e-5
 
-        a = 1e-5 if abs(xi_minus_1 - xi) < 1e-5 else xi_minus_1 - xi
-        b = 1e-5 if abs(xi - xi_plus_1) < 1e-5 else xi - xi_plus_1
+        # a = 1e-5 if abs(xi_minus_1 - xi) < 1e-5 else xi_minus_1 - xi
+        # b = 1e-5 if abs(xi - xi_plus_1) < 1e-5 else xi - xi_plus_1
 
-        u = ((math.pow(xi_minus_1, 2) - math.pow(xi, 2) +
-              math.pow(yi_minus_1, 2) - math.pow(yi, 2))/(2 * a))
-        k_1 = (yi_minus_1 - yi)/a
+        # u = ((math.pow(xi_minus_1, 2) - math.pow(xi, 2) +
+        #       math.pow(yi_minus_1, 2) - math.pow(yi, 2))/(2 * a))
+        # k_1 = (yi_minus_1 - yi)/a
 
-        v = ((math.pow(xi, 2) - math.pow(xi_plus_1, 2) +
-              math.pow(yi, 2) - math.pow(yi_plus_1, 2))/(2 * b))
-        k_2 = (yi - yi_plus_1)/b
+        # v = ((math.pow(xi, 2) - math.pow(xi_plus_1, 2) +
+        #       math.pow(yi, 2) - math.pow(yi_plus_1, 2))/(2 * b))
+        # k_2 = (yi - yi_plus_1)/b
 
-        Ry = (u - v) / (k_1 - k_2)
-        Rx = v - k_2 * (u - v)/(k_1 - k_2)
-        R = math.hypot(xi_minus_1 - Rx, yi_minus_1 - Ry)
-        return 1.0/R
+        # Ry = (u - v) / (k_1 - k_2)
+        # Rx = v - k_2 * (u - v)/(k_1 - k_2)
+        # R = math.hypot(xi_minus_1 - Rx, yi_minus_1 - Ry)
+        # kappa = 1/R
+
+        # Menger curvature
+        tri_area = 0.5 * ((xi - xi_minus_1) * (yi_plus_1 - yi_minus_1) -
+                          (yi - yi_minus_1) * (xi_plus_1 - xi_minus_1))
+        if abs(tri_area) < 1e-4:
+            return 0.0
+
+        kappa = (4.0 * tri_area) / (math.hypot(xi_minus_1 - xi, yi_minus_1 - yi)
+                                    * math.hypot(xi - xi_plus_1, yi - yi_plus_1)
+                                    * math.hypot(xi_plus_1 - xi_minus_1, yi_plus_1 - yi_minus_1))
+        return kappa
 
     def CalculatePathCurvature(self, x, y):
         path_curvature = []

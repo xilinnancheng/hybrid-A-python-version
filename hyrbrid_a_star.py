@@ -24,7 +24,7 @@ class Node:
 
 class HybridAStarConfig:
     def __init__(self):
-        self.xy_grid_resolution = 0.3
+        self.xy_grid_resolution = 0.6
         self.yaw_grid_resolution = np.deg2rad(2.5)
         self.max_steer = 0.5
         self.n_steer = 10
@@ -220,6 +220,7 @@ class HybridAStarPlanner:
 
     def GetPath(self, closed_list, goal_node, find_rs_path, path):
         curr_node = goal_node
+        tmp_direction = curr_node.direction
         last_direction = curr_node.direction
         path_segment_x = []
         path_segment_y = []
@@ -241,21 +242,38 @@ class HybridAStarPlanner:
         path_segment_y.reverse()
         self.path_x.append(path_segment_x)
         self.path_y.append(path_segment_y)
+        self.path_x.reverse()
+        self.path_y.reverse()
 
         if find_rs_path:
+            rs_path_seg_num = 0
             last_direction = path.directions[0]
             path_segment_x = []
             path_segment_y = []
             for i in range(len(path.x)):
                 if last_direction != path.directions[i]:
-                    self.path_x.append(path_segment_x)
-                    self.path_y.append(path_segment_y)
+                    if len(path_segment_x) >= 3:
+                        if rs_path_seg_num == 0 and tmp_direction == last_direction:
+                            self.path_x[-1].extend(path_segment_x)
+                            self.path_y[-1].extend(path_segment_y)
+                        else:
+                            self.path_x.append(path_segment_x)
+                            self.path_y.append(path_segment_y)
+                        rs_path_seg_num += 1
+
                     last_direction = path.directions[i]
                     path_segment_x = []
                     path_segment_y = []
+                if len(path_segment_x) == 0 or path_segment_x[-1] != path.x[i] or path_segment_y[-1] != path.y[i]:
+                    path_segment_x.append(path.x[i])
+                    path_segment_y.append(path.y[i])
 
-                path_segment_x.append(path.x[i])
-                path_segment_y.append(path.y[i])
+            if rs_path_seg_num == 0 and tmp_direction == last_direction:
+                self.path_x[-1].extend(path_segment_x)
+                self.path_y[-1].extend(path_segment_y)
+            elif len(path_segment_x) >= 3:
+                self.path_x.append(path_segment_x)
+                self.path_y.append(path_segment_y)
 
     def Plan(self, start, goal, show_animation=False, use_rs_curve=False):
         self.Environment()
@@ -348,25 +366,30 @@ def main():
     plt.arrow(x=goal_pose[0], y=goal_pose[1], dx=2.0 * math.cos(
         goal_pose[2]), dy=2.0 * math.sin(goal_pose[2]), width=.08, color='r')
     plt.title("Side Parking Scenario")
-    legend_txt = []
+    legend_txt_figure_1 = []
+    legend_txt_figure_2 = []
     for i in range(len(hybrid_a_star_planner.path_x)):
         plt.figure(num=1)
+        plt.plot(hybrid_a_star_planner.path_x[i],
+                 hybrid_a_star_planner.path_y[i], marker="o")
+
         ipopt_smoother = IpoptSmoother(
             hybrid_a_star_planner.path_x[i], hybrid_a_star_planner.path_y[i], lb, ub, curvature_limit, smooth_weight, length_weight, distance_weight, slack_weight, fixed_start_end, enable_plot)
         ipopt_smoother.Solve()
-        plt.plot(hybrid_a_star_planner.path_x[i],
-                 hybrid_a_star_planner.path_y[i], marker="o")
         plt.plot(ipopt_smoother.x_optimized,
                  ipopt_smoother.y_optimized, 'r', marker="x")
 
         plt.figure(num=2)
-        legend_txt.append("Ref_"+str(i))
-        legend_txt.append("Iter_"+str(i))
+        legend_txt_figure_2.append("Ref_"+str(i))
+        legend_txt_figure_2.append("Iter_"+str(i))
         plt.plot(ipopt_smoother.CalculatePathCurvature(
             hybrid_a_star_planner.path_x[i], hybrid_a_star_planner.path_y[i]))
         plt.plot(ipopt_smoother.CalculatePathCurvature(
             ipopt_smoother.x_optimized, ipopt_smoother.y_optimized))
-    plt.legend(legend_txt)
+        plt.title("Path Curvature")
+    plt.figure(num=2)
+    plt.legend(legend_txt_figure_2)
+    plt.grid()
     plt.show()
 
 
