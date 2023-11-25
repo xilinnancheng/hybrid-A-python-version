@@ -47,3 +47,5 @@ Hybrid A-start Path Smooth Using IPOPT:
 5.Cyipopt:https://github.com/mechmotum/cyipopt also see examples.
 
 6.OSQP:https://osqp.org/docs/solver/index.html
+
+7. Improved Updating of Euclidean Distance Maps and Voronoi Diagrams
